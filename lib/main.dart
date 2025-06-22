@@ -58,8 +58,8 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, state) {
-        // Show loading while checking authentication status
-        if (state is AuthInitial || state is AuthLoading) {
+        // Show loading only for initial auth check, not for login attempts
+        if (state is AuthInitial) {
           return const Scaffold(
             backgroundColor: AppColors.backgroundColor,
             body: Center(
@@ -73,7 +73,8 @@ class AuthWrapper extends StatelessWidget {
           return const GrammarHomeScreen();
         }
 
-        // Default to login screen
+        // For AuthLoggedOut, AuthError, and AuthLoading states during login,
+        // show the login screen (AuthScreenWrapper will handle the states properly)
         return const LoginScreen();
       },
     );

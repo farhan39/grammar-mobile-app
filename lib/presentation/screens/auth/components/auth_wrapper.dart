@@ -42,14 +42,50 @@ class AuthScreenWrapper extends StatelessWidget {
       body: SafeArea(
         child: BlocConsumer<AuthCubit, AuthState>(
           listener: (context, state) {
+            print(
+              'AuthWrapper listener - State: ${state.runtimeType}',
+            ); // Debug logging
+
             if (state is AuthError) {
+              print(
+                'AuthWrapper - Showing error snackbar: ${state.message}',
+              ); // Debug logging
+
+              // Clear any existing snackbars first
+              ScaffoldMessenger.of(context).clearSnackBars();
+
+              // Show error snackbar with longer duration
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(state.message),
+                  content: Text(
+                    state.message,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   backgroundColor: AppColors.errorColor,
+                  duration: const Duration(seconds: 4), // Longer duration
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.all(16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  action: SnackBarAction(
+                    label: 'Dismiss',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    },
+                  ),
                 ),
               );
             } else if (state is AuthLoggedIn) {
+              print(
+                'AuthWrapper - User logged in, navigating to grammar screen',
+              ); // Debug logging
+              // Clear any existing snackbars before navigation
+              ScaffoldMessenger.of(context).clearSnackBars();
               Navigator.of(context).pushReplacementNamed('/grammar');
             }
           },
