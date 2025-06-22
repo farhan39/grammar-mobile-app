@@ -18,7 +18,9 @@ class AuthCubit extends Cubit<AuthState> {
         emit(AuthLoggedOut());
       }
     } catch (e) {
-      emit(AuthError(message: 'Failed to initialize authentication: $e'));
+      // For initialization errors, just go to logged out state
+      // Don't show error messages during app startup
+      emit(AuthLoggedOut());
     }
   }
 
@@ -51,6 +53,8 @@ class AuthCubit extends Cubit<AuthState> {
 
   // Login existing user
   Future<void> login(String email, String password) async {
+    print('Login attempt started for: $email'); // Debug logging
+
     if (email.trim().isEmpty || password.trim().isEmpty) {
       emit(const AuthError(message: 'Please fill in all fields'));
       return;
@@ -62,12 +66,17 @@ class AuthCubit extends Cubit<AuthState> {
     }
 
     emit(AuthLoading());
+    print('AuthLoading state emitted'); // Debug logging
 
     try {
       await repository.login(email.trim(), password);
+      print('Login successful'); // Debug logging
       emit(AuthLoggedIn(userEmail: email.trim()));
     } catch (e) {
-      emit(AuthError(message: _parseErrorMessage(e.toString())));
+      // Ensure we emit an error state with detailed message
+      final errorMessage = _parseErrorMessage(e.toString());
+      print('Login failed, emitting AuthError: $errorMessage'); // Debug logging
+      emit(AuthError(message: errorMessage));
     }
   }
 
@@ -81,10 +90,11 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  // Clear error state
+  // Clear error state - removed automatic logout to prevent navigation issues
   void clearError() {
     if (state is AuthError) {
-      emit(AuthLoggedOut());
+      // Don't emit AuthLoggedOut here as it causes immediate navigation
+      // The error will naturally clear on next login attempt
     }
   }
 
@@ -95,6 +105,8 @@ class AuthCubit extends Cubit<AuthState> {
 
   // Helper method to parse and clean error messages
   String _parseErrorMessage(String error) {
+    print('Auth Error: $error'); // Debug logging
+
     // Clean up common error patterns
     if (error.contains('Registration failed:')) {
       String cleanedError = error.replaceAll('Registration failed:', '').trim();
@@ -108,16 +120,26 @@ class AuthCubit extends Cubit<AuthState> {
 
     if (error.contains('Login failed:')) {
       String cleanedError = error.replaceAll('Login failed:', '').trim();
-      if (cleanedError.contains('401') || cleanedError.contains('400')) {
-        return 'Invalid email or password. Please check your credentials.';
+      if (cleanedError.contains('401') ||
+          cleanedError.contains('400') ||
+          cleanedError.contains('unauthorized') ||
+          cleanedError.contains('invalid')) {
+        return 'Invalid email or password. Please check your credentials and try again.';
+      }
+      if (cleanedError.contains('404') || cleanedError.contains('not found')) {
+        return 'User account not found. Please check your email or sign up.';
       }
       return cleanedError.isNotEmpty
           ? cleanedError
           : 'Login failed. Please try again.';
     }
 
-    if (error.contains('No internet connection')) {
-      return 'No internet connection. Please check your network.';
+    if (error.contains('No internet connection') || error.contains('network')) {
+      return 'No internet connection. Please check your network and try again.';
+    }
+
+    if (error.contains('timeout') || error.contains('TimeoutException')) {
+      return 'Request timed out. Please check your connection and try again.';
     }
 
     // Return a generic message for unknown errors

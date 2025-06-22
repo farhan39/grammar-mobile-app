@@ -62,7 +62,7 @@ class HighlightedTextWidget extends StatelessWidget {
         );
       }
 
-      // Add highlighted error text
+      // Add highlighted error text (non-interactive if onTextReplaced is null)
       spans.add(
         TextSpan(
           text: text.substring(errorStart, errorEnd),
@@ -80,8 +80,10 @@ class HighlightedTextWidget extends StatelessWidget {
                     decorationColor: _getErrorColor(error.errorType),
                     decorationThickness: 2,
                   ),
-          recognizer: TapGestureRecognizer()
-            ..onTap = () => _showSuggestionDialog(context, error),
+          recognizer: onTextReplaced != null
+              ? (TapGestureRecognizer()
+                  ..onTap = () => _showSuggestionDialog(context, error))
+              : null, // No tap functionality if onTextReplaced is null
         ),
       );
 
@@ -217,28 +219,42 @@ class HighlightedTextWidget extends StatelessWidget {
                         color: AppColors.successColor.withValues(alpha: 0.3),
                       ),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.check_circle_outline,
-                          color: AppColors.successColor,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            error.suggestion,
-                            style: GoogleFonts.nunito(
-                              fontSize: 14,
-                              color: AppColors.textColor,
-                              fontWeight: FontWeight.w500,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle_outline,
+                              color: AppColors.successColor,
+                              size: 16,
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                error.suggestion,
+                                style: GoogleFonts.nunito(
+                                  fontSize: 14,
+                                  color: AppColors.textColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              color: AppColors.textSecondaryColor,
+                              size: 12,
+                            ),
+                          ],
                         ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          color: AppColors.textSecondaryColor,
-                          size: 12,
+                        const SizedBox(height: 4),
+                        Text(
+                          'Tap to apply correction (you can fix multiple errors)',
+                          style: GoogleFonts.nunito(
+                            fontSize: 11,
+                            color: AppColors.textSecondaryColor,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ],
                     ),
@@ -310,6 +326,25 @@ class HighlightedTextWidget extends StatelessWidget {
       onTextReplaced!(error.suggestion, error.start, error.end);
     }
     Navigator.of(context).pop();
+
+    // Show a brief, subtle confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '✓ Applied "${error.suggestion}"',
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+        ),
+        backgroundColor: Colors.green.shade600,
+        duration: const Duration(milliseconds: 800), // Shorter duration
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(
+          bottom: 100,
+          left: 16,
+          right: 16,
+        ), // Position higher
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
   }
 
   IconData _getErrorIcon(String errorType) {
