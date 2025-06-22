@@ -46,18 +46,30 @@ class _GrammarHomeScreenState extends State<GrammarHomeScreen> {
           child: BlocConsumer<GrammarCubit, GrammarState>(
             listener: (context, state) {
               if (state is GrammarCheckError) {
-                // Handle session expiry error
-                if (state.message.contains('session has expired') ||
-                    state.message.contains('login again')) {
-                  context.read<AuthCubit>().logout();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(state.message),
-                      backgroundColor: AppColors.errorColor,
+                // Show error message instead of automatically logging out
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: AppColors.errorColor,
+                    duration: const Duration(seconds: 4),
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.all(16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  );
-                }
+                    action:
+                        state.message.contains('Authentication failed') ||
+                            state.message.contains('re-login')
+                        ? SnackBarAction(
+                            label: 'Login',
+                            textColor: Colors.white,
+                            onPressed: () {
+                              context.read<AuthCubit>().logout();
+                            },
+                          )
+                        : null,
+                  ),
+                );
               }
             },
             builder: (context, state) {
@@ -195,29 +207,9 @@ class _GrammarHomeScreenState extends State<GrammarHomeScreen> {
           SizedBox(height: responsive.smallSpacing),
 
           if (result.hasCorrections) ...[
-            // Errors Summary
-            if (result.errors.isNotEmpty) ...[
-              Text(
-                'Errors Found: ${result.errors.length}',
-                style: GoogleFonts.nunito(
-                  fontSize: responsive.bodyText,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondaryColor,
-                ),
-              ),
-              SizedBox(height: responsive.getSpacing(6, 8, 10)),
-
-              // Error breakdown with responsive layout
-              ...result.errors.map(
-                (error) => _buildErrorSummary(error, responsive),
-              ),
-
-              SizedBox(height: responsive.smallSpacing),
-            ],
-
-            // Original Text with highlights
+            // Original Text with highlights (non-interactive)
             Text(
-              'Original Text (tap errors to correct):',
+              'Original Text:',
               style: GoogleFonts.nunito(
                 fontSize: responsive.bodyText,
                 fontWeight: FontWeight.w600,
@@ -237,21 +229,7 @@ class _GrammarHomeScreenState extends State<GrammarHomeScreen> {
               child: HighlightedTextWidget(
                 text: result.originalText,
                 errors: result.errors,
-                onTextReplaced: (suggestion, start, end) {
-                  _textController.text = _textController.text.replaceRange(
-                    start,
-                    end,
-                    suggestion,
-                  );
-                  // Re-check grammar after applying suggestion
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    if (_textController.text.trim().isNotEmpty && mounted) {
-                      context.read<GrammarCubit>().checkGrammar(
-                        _textController.text,
-                      );
-                    }
-                  });
-                },
+                onTextReplaced: null, // Remove tap functionality
                 style: GoogleFonts.nunito(
                   fontSize: responsive.bodyText,
                   color: AppColors.textColor,
@@ -322,139 +300,24 @@ class _GrammarHomeScreenState extends State<GrammarHomeScreen> {
     GrammarCheckSuccess result,
     ResponsiveHelper responsive,
   ) {
-    if (responsive.shouldStackButtonsVertically) {
-      // Stack buttons vertically on very small screens
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (result.hasCorrections) ...[
-            PrimaryButton(
-              text: 'Use Corrected Text',
-              onPressed: () {
-                _textController.text = result.correctedText;
-                context.read<GrammarCubit>().clearGrammarResult();
-              },
-              isOutlined: true,
-            ),
-            const SizedBox(height: 8),
-          ],
-          PrimaryButton(
-            text: 'Clear All',
-            onPressed: () {
-              _textController.clear();
-              context.read<GrammarCubit>().clearGrammarResult();
-            },
-            isOutlined: true,
-            borderColor: AppColors.borderColor,
-            foregroundColor: AppColors.textSecondaryColor,
-          ),
-        ],
-      );
-    } else {
-      // Horizontal layout for larger screens
-      return Row(
-        children: [
-          if (result.hasCorrections) ...[
-            Expanded(
-              child: PrimaryButton(
-                text: 'Use Corrected Text',
-                onPressed: () {
-                  _textController.text = result.correctedText;
-                  context.read<GrammarCubit>().clearGrammarResult();
-                },
-                isOutlined: true,
-              ),
-            ),
-            SizedBox(width: responsive.getSpacing(8, 12, 16)),
-          ],
-          Expanded(
-            child: PrimaryButton(
-              text: 'Clear All',
-              onPressed: () {
-                _textController.clear();
-                context.read<GrammarCubit>().clearGrammarResult();
-              },
-              isOutlined: true,
-              borderColor: AppColors.borderColor,
-              foregroundColor: AppColors.textSecondaryColor,
-            ),
-          ),
-        ],
-      );
-    }
-  }
-
-  Widget _buildErrorSummary(TextError error, ResponsiveHelper responsive) {
-    Color errorColor;
-    IconData errorIcon;
-
-    switch (error.errorType.toLowerCase()) {
-      case 'spelling':
-        errorColor = Colors.red;
-        errorIcon = Icons.spellcheck;
-        break;
-      case 'grammar':
-        errorColor = Colors.orange;
-        errorIcon = Icons.edit;
-        break;
-      case 'remove':
-        errorColor = Colors.purple;
-        errorIcon = Icons.delete_outline;
-        break;
-      default:
-        errorColor = AppColors.errorColor;
-        errorIcon = Icons.error_outline;
-    }
-
-    return Container(
-      margin: EdgeInsets.only(bottom: responsive.getSpacing(6, 8, 10)),
-      padding: EdgeInsets.all(responsive.getSpacing(8, 10, 12)),
-      decoration: BoxDecoration(
-        color: errorColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: errorColor.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(errorIcon, color: errorColor, size: responsive.smallIcon),
-          SizedBox(width: responsive.getSpacing(6, 8, 10)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${error.errorType.toUpperCase()}: "${error.originalText}"',
-                  style: GoogleFonts.nunito(
-                    fontSize: responsive.bodyText,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textColor,
-                  ),
-                ),
-                if (error.suggestion.isNotEmpty) ...[
-                  SizedBox(height: responsive.getSpacing(2, 4, 6)),
-                  Text(
-                    'Suggestion: ${error.suggestion}',
-                    style: GoogleFonts.nunito(
-                      fontSize: responsive.smallText,
-                      color: AppColors.successColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ] else if (error.errorType == 'remove') ...[
-                  SizedBox(height: responsive.getSpacing(2, 4, 6)),
-                  Text(
-                    'Suggestion: Remove this word',
-                    style: GoogleFonts.nunito(
-                      fontSize: responsive.smallText,
-                      color: Colors.orange,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
+    // Only show Clear All button
+    return Center(
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: responsive.shouldStackButtonsVertically
+              ? double.infinity
+              : 200,
+        ),
+        child: PrimaryButton(
+          text: 'Clear All',
+          onPressed: () {
+            _textController.clear();
+            context.read<GrammarCubit>().clearGrammarResult();
+          },
+          isOutlined: true,
+          borderColor: AppColors.borderColor,
+          foregroundColor: AppColors.textSecondaryColor,
+        ),
       ),
     );
   }

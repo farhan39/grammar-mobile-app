@@ -37,14 +37,19 @@ class GrammarCubit extends Cubit<GrammarState> {
       );
     } catch (e) {
       String errorMessage = e.toString();
+      print('Grammar check error: $errorMessage'); // Debug logging
 
       // Handle specific authentication errors
       if (errorMessage.contains('authentication') ||
           errorMessage.contains('token') ||
           errorMessage.contains('401')) {
+        print(
+          'Authentication error detected in grammar check',
+        ); // Debug logging
         emit(
           const GrammarCheckError(
-            message: 'Your session has expired. Please login again.',
+            message:
+                'Authentication failed. Please try again or re-login if the issue persists.',
           ),
         );
       } else if (errorMessage.contains('No internet connection')) {
