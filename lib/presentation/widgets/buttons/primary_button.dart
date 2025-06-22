@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:grammar_checker/utility/constants/app_colors.dart';
+import 'package:grammar_checker/utility/helpers/responsive_helper.dart';
 
 class PrimaryButton extends StatelessWidget {
   final String text;
@@ -37,17 +38,12 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    final responsive = context.responsive;
 
     // Responsive sizing
-    final responsiveFontSize = fontSize ?? (screenWidth < 360 ? 14 : 16);
-    final responsivePadding =
-        padding ??
-        EdgeInsets.symmetric(
-          vertical: screenWidth < 360 ? 12 : 16,
-          horizontal: screenWidth < 360 ? 16 : 20,
-        );
-    final indicatorSize = screenWidth < 360 ? 18.0 : 20.0;
+    final responsiveFontSize = fontSize ?? responsive.buttonText;
+    final responsivePadding = padding ?? responsive.buttonPadding;
+    final indicatorSize = responsive.getSpacing(18.0, 20.0, 22.0);
 
     final buttonStyle = isOutlined
         ? OutlinedButton.styleFrom(
@@ -86,7 +82,10 @@ class PrimaryButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (icon != null) ...[icon!, const SizedBox(width: 8)],
+              if (icon != null) ...[
+                icon!,
+                SizedBox(width: responsive.getSpacing(6, 8, 10)),
+              ],
               Flexible(
                 child: AutoSizeText(
                   text,
